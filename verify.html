@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sky Logger Verify</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background-color: #111;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      margin-bottom: 0.5em;
+      color: #7dc7ff;
+    }
+    .card {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 0 auto;
+      max-width: 600px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    }
+    .key {
+      color: #7dc7ff;
+      font-weight: bold;
+    }
+    .value {
+      color: #ccc;
+      word-break: break-all;
+    }
+    .map-button {
+      display: block;
+      margin-top: 10px;
+      padding: 10px;
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none;
+    }
+    footer {
+      text-align: center;
+      font-size: 0.8em;
+      color: #888;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📷 Sky Logger Verify</h1>
+  <div class="card" id="content">
+    <p>読み込み中です...</p>
+  </div>
+  <footer>© 2025 SkyLogger.app</footer>
+
+  <script>
+    // --- URLパラメータを解析 ---
+    const params = new URLSearchParams(window.location.search);
+    const data = {
+      uuid: params.get("uuid"),
+      lat: params.get("lat"),
+      lng: params.get("lng"),
+      capturedAt: params.get("capturedAt"),
+      file: params.get("file"),
+      hash: params.get("hash")
+    };
+
+    // --- 表示生成 ---
+    const content = document.getElementById("content");
+    if (!data.uuid) {
+      content.innerHTML = "<p>❌ 無効なQRコードです。</p>";
+    } else {
+      content.innerHTML = `
+        <p><span class="key">UUID:</span> <span class="value">${data.uuid}</span></p>
+        <p><span class="key">位置情報:</span> <span class="value">${data.lat}, ${data.lng}</span></p>
+        <p><span class="key">日時:</span> <span class="value">${data.capturedAt || "(未指定)"}</span></p>
+        <p><span class="key">ファイル名:</span> <span class="value">${data.file || "(不明)"}</span></p>
+        <p><span class="key">ハッシュ:</span> <span class="value">${data.hash || "(未記録)"}</span></p>
+        <a class="map-button" target="_blank"
+          href="https://www.google.com/maps?q=${data.lat},${data.lng}">
+          🌍 Googleマップで開く
+        </a>
+      `;
+    }
+  </script>
+</body>
+</html>
