@@ -14,10 +14,12 @@
     }
     .card {
       background: #222;
-      display: inline-block;
+      display: block;              /* ← inline-blockを修正 */
       text-align: left;
       padding: 24px;
       border-radius: 12px;
+      margin: 0 auto;
+      width: 90%;                  /* ← スマホ幅対応 */
       max-width: 420px;
       box-shadow: 0 0 20px rgba(0,0,0,0.3);
     }
@@ -27,7 +29,7 @@
       font-size: 22px;
       margin-bottom: 20px;
     }
-    p { margin: 6px 0; line-height: 1.5; }
+    p { margin: 6px 0; line-height: 1.5; word-break: break-all; }
     span.key { color: #7ec8ff; font-weight: bold; }
     .map-button {
       display: block;
@@ -60,7 +62,7 @@
   <div class="card" id="content">読み込み中...</div>
 
   <script>
-    // --- URLパラメータを取得 ---
+    // --- URLパラメータ取得 ---
     const params = new URLSearchParams(window.location.search);
     const data = {
       uuid: params.get("uuid"),
@@ -74,6 +76,7 @@
     // --- JST変換関数 ---
     function toJST(utcString) {
       try {
+        if (!utcString || utcString === "(未指定)") return "(未指定)";
         const date = new Date(utcString);
         if (isNaN(date)) return "(変換できません)";
         const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
@@ -86,6 +89,7 @@
 
     // --- HTML生成 ---
     const content = document.getElementById("content");
+
     if (!data.uuid) {
       content.innerHTML = `<p>❌ 無効なQRコードです。</p>`;
     } else {
@@ -93,18 +97,22 @@
       content.innerHTML = `
         <p><span class="key">UUID:</span> ${data.uuid}</p>
         <p><span class="key">位置情報:</span> ${data.lat}, ${data.lng}</p>
+
         <div class="time-block">
           <p><span class="key">撮影日時 (UTC):</span><br>${data.capturedAt || "(未指定)"}</p>
           <p><span class="key">撮影日時 (日本時間):</span><br>${jstTime}</p>
         </div>
-        <p><span class="key">ファイル名:</span> ${data.file || "(不明)"}</p>
-        <p><span class="key">ハッシュ:</span> ${data.hash || "(不明)"}</p>
+
+        <p><span class="key">ファイル名:</span><br>${data.file || "(不明)"}</p>
+        <p><span class="key">ハッシュ:</span><br>${data.hash || "(不明)"}</p>
+
         <a class="map-button" target="_blank"
            href="https://www.google.com/maps?q=${data.lat},${data.lng}">
            🌍 Googleマップで開く
         </a>
+
         <div class="note">
-          ※ UTCは国際標準時。JSTは日本時間（UTC+9）です。
+          ※ UTCは国際標準時、JSTは日本時間（UTC+9）です。
         </div>
       `;
     }
