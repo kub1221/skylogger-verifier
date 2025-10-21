@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sky Logger – Debug Verifier</title>
+<style>
+  body{background:#111;color:#fff;font-family:system-ui,sans-serif;padding:24px}
+  h1{color:#7ec8ff;font-size:22px;margin:0 0 16px}
+  pre{background:#222;padding:10px;border-radius:8px;white-space:pre-wrap}
+  .ok{color:#2ecc71}.ng{color:#ff7675}
+</style>
+</head>
+<body>
+  <h1>🧭 Sky Logger – Debug Verifier</h1>
+  <input id="file" type="file" accept="image/*,video/*"><br><br>
+  <div id="log"><b>ログ出力：</b></div>
+  <pre id="output">(ここに進行状況が表示されます)</pre>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+
+  const output = document.getElementById('output');
+  const fileInput = document.getElementById('file');
+  function log(msg){
+    console.log(msg);
+    output.textContent += msg + "\n";
+  }
+
+  log("ページ読み込み完了");
+
+  if (typeof ZXing === "undefined") {
+    log("❌ ZXingがロードされていません");
+    return;
+  }
+  log("✅ ZXingライブラリ検出");
+
+  const codeReader = new ZXing.BrowserQRCodeReader();
+  log("✅ QRリーダー初期化完了");
+
+  fileInput.addEventListener('change', async ev=>{
+    const f = ev.target.files?.[0];
+    if(!f){ log("❌ ファイル未選択"); return; }
+    log(`📄 ファイル名: ${f.name}`);
+    log(`📄 MIMEタイプ: ${f.type}`);
+
+    try{
+      if(f.type.startsWith("video/")){
+        log("🎞 動画モード: 最初のフレームからQRを抽出予定");
+        const vid = document.createElement("video");
+        vid.src = URL.createObjectURL(f);
+        vid.onloadeddata = ()=>{
+          log(`🎥 動画ロード成功: duration=${vid.duration}s`);
+          vid.currentTime = vid.duration * 0.1;
+        };
+        vid.onseeked = async ()=>{
+          const canvas = document.createElement("canvas");
+          canvas.width = vid.videoWidth;
+          canvas.height = vid.videoHeight;
+          canvas.getContext("2d").drawImage(vid,0,0);
+          const blob = await new Promise(r=>canvas.toBlob(r,"image/jpeg"));
+          const url = URL.createObjectURL(blob);
+          log("🧩 画像抽出 → ZXing解析開始");
+          try{
+            const result = await codeReader.decodeFromImageUrl(url);
+            log(`✅ QR解析成功: ${result.getText().slice(0,120)}...`);
+          }catch(e){
+            log(`❌ QR解析失敗（動画）: ${e}`);
+          }
+        };
+      }else{
+        log("🖼 静止画モード: ZXing解析開始");
+        const url = URL.createObjectURL(f);
+        try{
+          const result = await codeReader.decodeFromImageUrl(url);
+          log(`✅ QR解析成功: ${result.getText().slice(0,120)}...`);
+        }catch(e){
+          log(`❌ QR解析失敗（画像）: ${e}`);
+        }finally{
+          URL.revokeObjectURL(url);
+        }
+      }
+    }catch(e){
+      log("⚠️ 例外発生: "+e);
+    }
+  });
+});
+</script>
+</body>
+</html>
