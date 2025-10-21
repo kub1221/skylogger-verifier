@@ -33,10 +33,10 @@
     <div class="note">※ GitHub上のハッシュと一致すれば「PASS」になります。</div>
   </div>
 
-<!-- ✅ ZXing の安定版CDNに変更 -->
+<!-- ✅ ZXing の安定版CDNを使用 -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
 <script>
-const { BrowserQRCodeReader } = ZXing;
+const { BrowserQRCodeReader } = ZXingBrowser;  // ← 修正版：ZXing → ZXingBrowser
 const codeReader = new BrowserQRCodeReader();
 
 // ==== 基本設定 ====
