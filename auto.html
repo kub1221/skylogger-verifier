@@ -33,16 +33,18 @@
     <div class="note">※ GitHub上のハッシュと一致すれば「PASS」になります。</div>
   </div>
 
-<!-- ✅ ZXing の安定版CDNを使用 -->
+<!-- ✅ ZXing の確実動作版CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+
 <script>
-const { BrowserQRCodeReader } = ZXingBrowser;  // ← 修正版：ZXing → ZXingBrowser
+const { BrowserQRCodeReader } = ZXingBrowser; // ← ここがポイント！
 const codeReader = new BrowserQRCodeReader();
 
 // ==== 基本設定 ====
-const OWNER  = "kub1221";                // ← あなたのGitHubユーザー名
-const REPO   = "skylogger-verifier-data"; // ← ハッシュを保存しているリポジトリ名
-const BRANCH = "main";                   // ← 通常は "main" のままでOK
+const OWNER  = "kub1221";
+const REPO   = "skylogger-verifier-data";
+const BRANCH = "main";
 
 // ==== 要素参照 ====
 const fileInput = document.getElementById('file');
