@@ -33,15 +33,14 @@
     <div class="note">※ GitHub上のハッシュと一致すれば「PASS」になります。</div>
   </div>
 
-<!-- ✅ ZXing 正しいCDN定義 -->
+<!-- ✅ ZXing QRコード読取ライブラリ -->
 <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
 <script>
-// 正しいクラス名（ZXingBrowserではなくZXingを使用）
 const codeReader = new ZXing.BrowserQRCodeReader();
 
-// ==== 基本設定 ====
+// ==== GitHub設定（あなたの本番リポジトリ） ====
 const OWNER  = "kub1221";
-const REPO   = "skylogger-verifier-data";
+const REPO   = "sky-logger-hashes";
 const BRANCH = "main";
 
 // ==== 要素参照 ====
@@ -90,7 +89,7 @@ function parseQRParams(text){
   }
 }
 
-// ==== GitHubとの照合 ====
+// ==== GitHub照合（あなたのハッシュ形式に対応） ====
 async function verifyOnGitHub(fileName, qrHash){
   if (!fileName || !qrHash) return {ok:false, reason:"file/hash 不足"};
 
@@ -102,9 +101,14 @@ async function verifyOnGitHub(fileName, qrHash){
   try{
     const res = await fetch(url, {cache:'no-store'});
     if(!res.ok) return {ok:false, reason:`GitHub 404/NG (${res.status})`};
+
+    // ✅ 1行目の "hash:" 行から抽出
     const text = (await res.text()).trim();
-    const ok = text === qrHash || text.split(/\s+/).includes(qrHash);
-    return {ok, reason: ok ? "一致" : "不一致", videoId, remote:text};
+    const firstLine = text.split('\n')[0];
+    const remoteHash = firstLine.replace(/^hash:\s*/,'').trim();
+
+    const ok = remoteHash === qrHash;
+    return {ok, reason: ok ? "一致" : "不一致", videoId, remote:remoteHash};
   }catch(e){
     return {ok:false, reason:"GitHub fetch 失敗: "+e};
   }
