@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sky Logger – Trace Debug</title>
+<style>
+body{background:#111;color:#fff;font-family:system-ui,sans-serif;padding:20px}
+pre{background:#222;padding:10px;border-radius:8px}
+.ok{color:#2ecc71}.fail{color:#ff7675}
+</style>
+</head>
+<body>
+<h1>🔍 Sky Logger – Trace Debug</h1>
+<input id="file" type="file" accept="image/*">
+<canvas id="canvas" style="max-width:100%;display:block;margin-top:12px"></canvas>
+<pre id="log">(ログ出力)</pre>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script>
+const fileInput = document.getElementById("file");
+const canvas = document.getElementById("canvas");
+const log = msg => document.getElementById("log").textContent += msg + "\n";
+const ctx = canvas.getContext("2d");
+
+fileInput.addEventListener("change", async ev => {
+  const f = ev.target.files?.[0];
+  if (!f) return;
+  log(`🗂 ファイル: ${f.name}`);
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = async () => {
+    log("✅ 画像読み込み成功");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    try {
+      ctx.drawImage(img, 0, 0);
+      log("✅ Canvasへ描画成功");
+    } catch (e) {
+      log("❌ Canvas描画エラー: " + e);
+      return;
+    }
+    try {
+      const data = ctx.getImageData(0, 0, 10, 10); //一部ピクセルを確認
+      log("✅ getImageData成功 (" + data.data.length + " bytes)");
+    } catch (e) {
+      log("❌ getImageData失敗 (CORS制限の可能性): " + e);
+      return;
+    }
+    try {
+      const reader = new ZXing.BrowserQRCodeReader();
+      const res = await reader.decodeFromImageElement(img);
+      log("✅ ZXingデコード成功: " + res.getText().slice(0,100));
+    } catch (e) {
+      log("❌ ZXingデコード失敗: " + e.message);
+    }
+  };
+  img.onerror = e => log("❌ 画像読み込み失敗: " + e);
+  img.src = url;
+});
+</script>
+</body>
+</html>
