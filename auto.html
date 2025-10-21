@@ -33,158 +33,153 @@
     <div class="note">※ GitHub上のハッシュと一致すれば「PASS」になります。</div>
   </div>
 
-<!-- ✅ ZXing の確実動作版CDN -->
+<!-- ✅ ZXingライブラリを確実に読み込む（順序が重要） -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
 
-<script>
-const { BrowserQRCodeReader } = ZXingBrowser; // ← ここがポイント！
-const codeReader = new BrowserQRCodeReader();
+<!-- ✅ メイン処理は deferで実行（ライブラリ読み込み完了後に実行） -->
+<script defer>
+window.addEventListener('load', () => {
+  // ここでZXingBrowserが定義済みになる
+  const { BrowserQRCodeReader } = ZXingBrowser;
+  const codeReader = new BrowserQRCodeReader();
 
-// ==== 基本設定 ====
-const OWNER  = "kub1221";
-const REPO   = "skylogger-verifier-data";
-const BRANCH = "main";
+  const OWNER  = "kub1221";
+  const REPO   = "skylogger-verifier-data";
+  const BRANCH = "main";
 
-// ==== 要素参照 ====
-const fileInput = document.getElementById('file');
-const out = document.getElementById('out');
-const verifyResult = document.getElementById('verifyResult');
-const vid = document.getElementById('vid');
-const snap = document.getElementById('snap');
+  const fileInput = document.getElementById('file');
+  const out = document.getElementById('out');
+  const verifyResult = document.getElementById('verifyResult');
+  const vid = document.getElementById('vid');
+  const snap = document.getElementById('snap');
 
-// ==== JST変換 ====
-function toJST(iso){
-  try{
-    const d = new Date(iso);
-    const j = new Date(d.getTime() + 9*3600*1000);
-    const pad = n=>String(n).padStart(2,'0');
-    return `${j.getFullYear()}/${pad(j.getMonth()+1)}/${pad(j.getDate())} ${pad(j.getHours())}:${pad(j.getMinutes())}:${pad(j.getSeconds())} (JST)`;
-  }catch{ return "(変換できません)"; }
-}
-
-// ==== QRパラメータ解析 ====
-function parseQRParams(text){
-  try{
-    const u = new URL(text);
-    const p = u.searchParams;
-    return {
-      uuid: p.get('uuid'),
-      lat:  p.get('lat'),
-      lng:  p.get('lng'),
-      capturedAt: p.get('capturedAt'),
-      file: p.get('file'),
-      hash: p.get('hash'),
-      _raw: text
-    };
-  }catch{
-    const idx = text.indexOf('?');
-    const q = new URLSearchParams(idx>=0 ? text.slice(idx+1) : text);
-    return {
-      uuid: q.get('uuid'),
-      lat:  q.get('lat'),
-      lng:  q.get('lng'),
-      capturedAt: q.get('capturedAt'),
-      file: q.get('file'),
-      hash: q.get('hash'),
-      _raw: text
-    };
+  function toJST(iso){
+    try{
+      const d = new Date(iso);
+      const j = new Date(d.getTime() + 9*3600*1000);
+      const pad = n=>String(n).padStart(2,'0');
+      return `${j.getFullYear()}/${pad(j.getMonth()+1)}/${pad(j.getDate())} ${pad(j.getHours())}:${pad(j.getMinutes())}:${pad(j.getSeconds())} (JST)`;
+    }catch{ return "(変換できません)"; }
   }
-}
 
-// ==== GitHubとの照合 ====
-async function verifyOnGitHub(fileName, qrHash){
-  if (!fileName || !qrHash) return {ok:false, reason:"file/hash 不足"};
-
-  const m = fileName.match(/_([0-9a-f-]{36})\.json$/i);
-  if(!m) return {ok:false, reason:"videoId 抽出失敗"};
-  const videoId = m[1];
-
-  const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/hashes/${videoId}.txt`;
-  try{
-    const res = await fetch(url, {cache:'no-store'});
-    if(!res.ok) return {ok:false, reason:`GitHub 404/NG (${res.status})`};
-    const text = (await res.text()).trim();
-    const ok = text === qrHash || text.split(/\s+/).includes(qrHash);
-    return {ok, reason: ok ? "一致" : "不一致", videoId, remote:text};
-  }catch(e){
-    return {ok:false, reason:"GitHub fetch 失敗: "+e};
-  }
-}
-
-// ==== QR解析（画像） ====
-async function decodeFromImage(blob){
-  const imgUrl = URL.createObjectURL(blob);
-  const result = await codeReader.decodeFromImageUrl(imgUrl);
-  URL.revokeObjectURL(imgUrl);
-  return result.getText();
-}
-
-// ==== QR解析（動画） ====
-async function decodeFromVideo(blob){
-  return new Promise((resolve, reject)=>{
-    vid.src = URL.createObjectURL(blob);
-    vid.style.display = 'block';
-    vid.onloadeddata = ()=>{
-      vid.currentTime = Math.min(1.0, (vid.duration || 1) * 0.1);
-    };
-    vid.onseeked = ()=>{
-      const w = vid.videoWidth, h = vid.videoHeight;
-      if(!w || !h) return reject('動画寸法なし');
-      snap.width = w; snap.height = h;
-      const ctx = snap.getContext('2d');
-      ctx.drawImage(vid, 0, 0, w, h);
-      snap.toBlob(async (frameBlob)=>{
-        try{
-          const url = URL.createObjectURL(frameBlob);
-          const res = await codeReader.decodeFromImageUrl(url);
-          URL.revokeObjectURL(url);
-          resolve(res.getText());
-        }catch(e){ reject(e); }
-      }, 'image/png');
-    };
-    vid.onerror = e=>reject(e);
-  });
-}
-
-// ==== メイン処理 ====
-fileInput.addEventListener('change', async (ev)=>{
-  out.textContent = '解析中…';
-  verifyResult.textContent = '—';
-  const f = ev.target.files?.[0];
-  if(!f){ out.textContent='ファイル未選択'; return; }
-
-  try{
-    let qrText;
-    if(f.type.startsWith('video/')){
-      qrText = await decodeFromVideo(f);
-    }else{
-      qrText = await decodeFromImage(f);
+  function parseQRParams(text){
+    try{
+      const u = new URL(text);
+      const p = u.searchParams;
+      return {
+        uuid: p.get('uuid'),
+        lat:  p.get('lat'),
+        lng:  p.get('lng'),
+        capturedAt: p.get('capturedAt'),
+        file: p.get('file'),
+        hash: p.get('hash'),
+        _raw: text
+      };
+    }catch{
+      const idx = text.indexOf('?');
+      const q = new URLSearchParams(idx>=0 ? text.slice(idx+1) : text);
+      return {
+        uuid: q.get('uuid'),
+        lat:  q.get('lat'),
+        lng:  q.get('lng'),
+        capturedAt: q.get('capturedAt'),
+        file: q.get('file'),
+        hash: q.get('hash'),
+        _raw: text
+      };
     }
-
-    const p = parseQRParams(qrText);
-    if(!p.uuid){ out.innerHTML = `<span class="fail">QRに必要項目がありません</span><br>${qrText}`; return; }
-
-    const jst = toJST(p.capturedAt);
-    out.innerHTML = `
-      <div><span class="key">UUID:</span> ${p.uuid}</div>
-      <div><span class="key">位置情報:</span> ${p.lat}, ${p.lng}</div>
-      <div><span class="key">撮影日時(UTC):</span> ${p.capturedAt || '(未指定)'}</div>
-      <div><span class="key">撮影日時(JST):</span> ${jst}</div>
-      <div><span class="key">ファイル名:</span> ${p.file || '(不明)'}</div>
-      <div><span class="key">ハッシュ:</span> ${p.hash || '(不明)'}</div>
-      <div class="row"><a target="_blank" href="https://www.google.com/maps?q=${p.lat},${p.lng}">🌍 Googleマップで開く</a></div>
-      <div class="note">※ GitHub上のハッシュ照合を実施中...</div>
-    `;
-
-    const v = await verifyOnGitHub(p.file, p.hash);
-    verifyResult.innerHTML = v.ok
-      ? `<span class="pass">✅ PASS</span>（GitHub記録と一致）`
-      : `<span class="fail">❌ FAIL</span>（${v.reason}）`;
-
-  }catch(e){
-    out.innerHTML = `<span class="fail">QR解析に失敗:</span> ${String(e)}`;
   }
+
+  async function verifyOnGitHub(fileName, qrHash){
+    if (!fileName || !qrHash) return {ok:false, reason:"file/hash 不足"};
+    const m = fileName.match(/_([0-9a-f-]{36})\.json$/i);
+    if(!m) return {ok:false, reason:"videoId 抽出失敗"};
+    const videoId = m[1];
+
+    const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/hashes/${videoId}.txt`;
+    try{
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) return {ok:false, reason:`GitHub 404/NG (${res.status})`};
+      const text = (await res.text()).trim();
+      const ok = text === qrHash || text.split(/\s+/).includes(qrHash);
+      return {ok, reason: ok ? "一致" : "不一致", videoId, remote:text};
+    }catch(e){
+      return {ok:false, reason:"GitHub fetch 失敗: "+e};
+    }
+  }
+
+  async function decodeFromImage(blob){
+    const imgUrl = URL.createObjectURL(blob);
+    const result = await codeReader.decodeFromImageUrl(imgUrl);
+    URL.revokeObjectURL(imgUrl);
+    return result.getText();
+  }
+
+  async function decodeFromVideo(blob){
+    return new Promise((resolve, reject)=>{
+      vid.src = URL.createObjectURL(blob);
+      vid.style.display = 'block';
+      vid.onloadeddata = ()=>{
+        vid.currentTime = Math.min(1.0, (vid.duration || 1) * 0.1);
+      };
+      vid.onseeked = ()=>{
+        const w = vid.videoWidth, h = vid.videoHeight;
+        if(!w || !h) return reject('動画寸法なし');
+        snap.width = w; snap.height = h;
+        const ctx = snap.getContext('2d');
+        ctx.drawImage(vid, 0, 0, w, h);
+        snap.toBlob(async (frameBlob)=>{
+          try{
+            const url = URL.createObjectURL(frameBlob);
+            const res = await codeReader.decodeFromImageUrl(url);
+            URL.revokeObjectURL(url);
+            resolve(res.getText());
+          }catch(e){ reject(e); }
+        }, 'image/png');
+      };
+      vid.onerror = e=>reject(e);
+    });
+  }
+
+  fileInput.addEventListener('change', async (ev)=>{
+    out.textContent = '解析中…';
+    verifyResult.textContent = '—';
+    const f = ev.target.files?.[0];
+    if(!f){ out.textContent='ファイル未選択'; return; }
+
+    try{
+      let qrText;
+      if(f.type.startsWith('video/')){
+        qrText = await decodeFromVideo(f);
+      }else{
+        qrText = await decodeFromImage(f);
+      }
+
+      const p = parseQRParams(qrText);
+      if(!p.uuid){ out.innerHTML = `<span class="fail">QRに必要項目がありません</span><br>${qrText}`; return; }
+
+      const jst = toJST(p.capturedAt);
+      out.innerHTML = `
+        <div><span class="key">UUID:</span> ${p.uuid}</div>
+        <div><span class="key">位置情報:</span> ${p.lat}, ${p.lng}</div>
+        <div><span class="key">撮影日時(UTC):</span> ${p.capturedAt || '(未指定)'}</div>
+        <div><span class="key">撮影日時(JST):</span> ${jst}</div>
+        <div><span class="key">ファイル名:</span> ${p.file || '(不明)'}</div>
+        <div><span class="key">ハッシュ:</span> ${p.hash || '(不明)'}</div>
+        <div class="row"><a target="_blank" href="https://www.google.com/maps?q=${p.lat},${p.lng}">🌍 Googleマップで開く</a></div>
+        <div class="note">※ GitHub上のハッシュ照合を実施中...</div>
+      `;
+
+      const v = await verifyOnGitHub(p.file, p.hash);
+      verifyResult.innerHTML = v.ok
+        ? `<span class="pass">✅ PASS</span>（GitHub記録と一致）`
+        : `<span class="fail">❌ FAIL</span>（${v.reason}）`;
+
+    }catch(e){
+      out.innerHTML = `<span class="fail">QR解析に失敗:</span> ${String(e)}`;
+    }
+  });
 });
 </script>
 </body>
