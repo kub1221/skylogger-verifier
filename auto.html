@@ -33,19 +33,25 @@
     <div class="note">※ GitHub上のハッシュと一致すれば「PASS」になります。</div>
   </div>
 
-<script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
+<!-- ✅ ZXing の安定版CDNに変更 -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
 <script>
+const { BrowserQRCodeReader } = ZXing;
+const codeReader = new BrowserQRCodeReader();
+
+// ==== 基本設定 ====
 const OWNER  = "kub1221";                // ← あなたのGitHubユーザー名
-const REPO   = "skylogger-verifier-data"; // ← ハッシュを保存しているリポジトリ名（後で作成OK）
+const REPO   = "skylogger-verifier-data"; // ← ハッシュを保存しているリポジトリ名
 const BRANCH = "main";                   // ← 通常は "main" のままでOK
 
+// ==== 要素参照 ====
 const fileInput = document.getElementById('file');
 const out = document.getElementById('out');
 const verifyResult = document.getElementById('verifyResult');
 const vid = document.getElementById('vid');
 const snap = document.getElementById('snap');
-const codeReader = new ZXingBrowser.BrowserQRCodeReader();
 
+// ==== JST変換 ====
 function toJST(iso){
   try{
     const d = new Date(iso);
@@ -55,6 +61,7 @@ function toJST(iso){
   }catch{ return "(変換できません)"; }
 }
 
+// ==== QRパラメータ解析 ====
 function parseQRParams(text){
   try{
     const u = new URL(text);
@@ -83,10 +90,10 @@ function parseQRParams(text){
   }
 }
 
+// ==== GitHubとの照合 ====
 async function verifyOnGitHub(fileName, qrHash){
   if (!fileName || !qrHash) return {ok:false, reason:"file/hash 不足"};
 
-  // ファイル名から videoId を抽出
   const m = fileName.match(/_([0-9a-f-]{36})\.json$/i);
   if(!m) return {ok:false, reason:"videoId 抽出失敗"};
   const videoId = m[1];
@@ -103,12 +110,15 @@ async function verifyOnGitHub(fileName, qrHash){
   }
 }
 
+// ==== QR解析（画像） ====
 async function decodeFromImage(blob){
   const imgUrl = URL.createObjectURL(blob);
   const result = await codeReader.decodeFromImageUrl(imgUrl);
   URL.revokeObjectURL(imgUrl);
   return result.getText();
 }
+
+// ==== QR解析（動画） ====
 async function decodeFromVideo(blob){
   return new Promise((resolve, reject)=>{
     vid.src = URL.createObjectURL(blob);
@@ -135,6 +145,7 @@ async function decodeFromVideo(blob){
   });
 }
 
+// ==== メイン処理 ====
 fileInput.addEventListener('change', async (ev)=>{
   out.textContent = '解析中…';
   verifyResult.textContent = '—';
