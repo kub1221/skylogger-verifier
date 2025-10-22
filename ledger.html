@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>📜 Sky Logger – Public Ledger</title>
+<style>
+  body { background:#111; color:#fff; font-family:system-ui,sans-serif; padding:24px; }
+  h1 { color:#7ec8ff; font-size:22px; margin:0 0 16px; }
+  .entry { background:#1c1c1c; border-radius:8px; padding:10px; margin:6px 0; }
+  .id { color:#7ec8ff; font-weight:bold; }
+  .hash { color:#9aa; font-family:monospace; font-size:12px; }
+  .fail { color:#ff7675; }
+  .note { font-size:12px; color:#999; margin-top:12px; }
+</style>
+</head>
+<body>
+  <h1>📜 Sky Logger – 公開台帳（Public Ledger）</h1>
+  <div id="list">読み込み中...</div>
+  <div class="note">※ GitHub上の署名ハッシュを自動一覧化しています。</div>
+
+<script>
+const OWNER = "kub1221";
+const REPO = "sky-logger-hashes";
+const BRANCH = "main";
+
+async function fetchLedger(){
+  const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/hashes?ref=${BRANCH}`;
+  const listDiv = document.getElementById('list');
+
+  try {
+    const res = await fetch(apiUrl, {cache:'no-store'});
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("データ取得失敗");
+
+    listDiv.innerHTML = "";
+    for (const file of data) {
+      if (!file.name.endsWith(".txt")) continue;
+      const txtUrl = file.download_url;
+      const txtRes = await fetch(txtUrl, {cache:'no-store'});
+      const text = (await txtRes.text()).trim();
+
+      const item = document.createElement("div");
+      item.className = "entry";
+      item.innerHTML = `
+        <div><span class="id">${file.name.replace(".txt","")}</span></div>
+        <div class="hash">${text}</div>
+      `;
+      listDiv.appendChild(item);
+    }
+  } catch(e){
+    listDiv.innerHTML = `<span class="fail">読み込みエラー：</span> ${e}`;
+  }
+}
+fetchLedger();
+</script>
+</body>
+</html>
