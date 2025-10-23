@@ -9,7 +9,10 @@
   h1 { color:#7ec8ff; font-size:22px; margin:0 0 16px; }
   .entry { background:#1c1c1c; border-radius:8px; padding:10px; margin:6px 0; }
   .id { color:#7ec8ff; font-weight:bold; }
-  .hash { color:#9aa; font-family:monospace; font-size:12px; }
+  .hash { color:#9aa; font-family:monospace; font-size:12px; margin-top:4px; }
+  .meta { font-size:13px; color:#ccc; margin-top:4px; }
+  a { color:#7ec8ff; text-decoration:none; }
+  a:hover { text-decoration:underline; }
   .fail { color:#ff7675; }
   .note { font-size:12px; color:#999; margin-top:12px; }
 </style>
@@ -17,38 +20,57 @@
 <body>
   <h1>📜 Sky Logger – 公開台帳（Public Ledger）</h1>
   <div id="list">読み込み中...</div>
-  <div class="note">※ GitHub上の署名ハッシュを自動一覧化しています。</div>
+  <div class="note">※ GitHub上の署名ハッシュをFirestoreログと照合して表示しています。</div>
 
 <script>
 const OWNER = "kub1221";
 const REPO = "sky-logger-hashes";
 const BRANCH = "main";
 
-async function fetchLedger(){
+// Firestore由来のJSONをCloud Functionsで同リポジトリに生成している想定
+const JSON_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/ledger.json`;
+
+async function fetchLedger() {
   const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/hashes?ref=${BRANCH}`;
   const listDiv = document.getElementById('list');
-
   try {
-    const res = await fetch(apiUrl, {cache:'no-store'});
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error("データ取得失敗");
+    const [hashRes, logRes] = await Promise.all([
+      fetch(apiUrl, { cache: 'no-store' }),
+      fetch(JSON_URL, { cache: 'no-store' })
+    ]);
+
+    const hashList = await hashRes.json();
+    const logs = await logRes.json();
 
     listDiv.innerHTML = "";
-    for (const file of data) {
+
+    for (const file of hashList) {
       if (!file.name.endsWith(".txt")) continue;
+      const id = file.name.replace(".txt", "");
       const txtUrl = file.download_url;
-      const txtRes = await fetch(txtUrl, {cache:'no-store'});
-      const text = (await txtRes.text()).trim();
+      const txtRes = await fetch(txtUrl, { cache: 'no-store' });
+      const hash = (await txtRes.text()).trim();
+
+      // Firestoreログから一致するUUIDを探す
+      const log = logs.find(l => l.videoId === id || l.uuid === id || l.hash === hash);
+
+      const address = log?.address ?? "(住所不明)";
+      const capturedAt = log?.capturedAt ?? "(撮影日時不明)";
+      const verifyUrl = `verify.html?uuid=${id}`;
 
       const item = document.createElement("div");
       item.className = "entry";
       item.innerHTML = `
-        <div><span class="id">${file.name.replace(".txt","")}</span></div>
-        <div class="hash">${text}</div>
+        <div><span class="id">${id}</span></div>
+        <div class="hash">hash: ${hash}</div>
+        <div class="meta">🏠 ${address}</div>
+        <div class="meta">🕓 ${capturedAt}</div>
+        <div class="meta">🔗 <a href="${verifyUrl}">verify</a></div>
       `;
       listDiv.appendChild(item);
     }
-  } catch(e){
+  } catch (e) {
+    console.error(e);
     listDiv.innerHTML = `<span class="fail">読み込みエラー：</span> ${e}`;
   }
 }
