@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>☁ Sky Logger — Firestore照合ビュー</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: monospace;
+      margin: 40px;
+      white-space: pre-wrap;
+    }
+    h1 { color: #ffcc00; font-weight: bold; }
+    .note { color: #aaa; font-size: 0.9em; margin-bottom: 1.5em; }
+    .error { color: #f88; }
+    .success { color: #8f8; }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA_5A6NejCXULUaVpvSLvZJjg7KczEovzA",
+      authDomain: "sky-logger-ios.firebaseapp.com",
+      projectId: "sky-logger-ios",
+      storageBucket: "sky-logger-ios.appspot.com",
+      messagingSenderId: "129141512948",
+      appId: "1:129141512948:web:xxxxxxxxxxxxxxxx"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadPublicLogs() {
+      const output = document.getElementById("output");
+      output.textContent = "Firestoreからデータを読み込み中...\n";
+
+      try {
+        // Firestore (public_logs)
+        const snapshot = await getDocs(collection(db, "public_logs"));
+        const logs = [];
+        snapshot.forEach((doc) => logs.push(doc.data()));
+
+        if (logs.length === 0) {
+          output.innerHTML = '<span class="error">⚠️ public_logs にデータがありません。</span>';
+          return;
+        }
+
+        // GitHub ledger.json
+        const ledgerUrl = "https://raw.githubusercontent.com/kub1221/sky-logger-hashes/main/hashes/ledger.json";
+        const ledgerRes = await fetch(ledgerUrl);
+        const ledger = await ledgerRes.json();
+
+        let result = "=== Firestore ↔ GitHub 照合結果 ===\n";
+        for (const log of logs) {
+          const match = ledger.find((e) => e.hash === log.hash);
+          if (match) {
+            result += `✅ ${log.videoId} — 一致 (${log.address})\n`;
+          } else {
+            result += `⚠️ ${log.videoId} — GitHub未登録\n`;
+          }
+        }
+
+        output.innerHTML = `<span class="success">${result}</span>`;
+      } catch (err) {
+        output.innerHTML = `<span class="error">読み込みエラー: ${err.message}</span>`;
+      }
+    }
+
+    window.onload = loadPublicLogs;
+  </script>
+</head>
+<body>
+  <h1>☁ Sky Logger — Firestore照合ビュー</h1>
+  <div class="note">
+    Firestore（public_logs）と GitHub ledger.json を自動照合して表示します。
+  </div>
+  <div id="output">ロード中...</div>
+</body>
+</html>
