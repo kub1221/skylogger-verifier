@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Sky Logger — Firestore照合ビュー</title>
+<style>
+  body {
+    background-color: #111;
+    color: #eee;
+    font-family: monospace;
+    margin: 40px;
+  }
+  h1 { color: #ffcc00; }
+  pre {
+    background: #222;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .match { color: #0f0; font-weight: bold; }
+  .mismatch { color: #f33; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>☁️ Sky Logger — Firestore照合ビュー</h1>
+<p>FirestoreとGitHubのログを自動照合します。</p>
+
+<div id="output">読み込み中...</div>
+
+<script type="module">
+  // 🔹 Firebase SDK を読み込み
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // ✅ あなたの Sky Logger プロジェクト設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyA_5A6NejCXULUaVpvSLvZJjg7KczEovzA",
+    authDomain: "sky-logger-appv1.firebaseapp.com",
+    projectId: "sky-logger-appv1",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const output = document.getElementById('output');
+
+  async function loadAndCompare() {
+    try {
+      // 🔸 Firestoreから最新ログを1件取得
+      const q = query(collection(db, "logs"), orderBy("createdAt", "desc"), limit(1));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        output.textContent = "Firestoreにログが見つかりません。";
+        return;
+      }
+
+      const firestoreData = snapshot.docs[0].data();
+
+      // 🔸 GitHub上の ledger.json を取得
+      const res = await fetch("https://raw.githubusercontent.com/kub1221/sky-logger-hashes/main/hashes/ledger.json");
+      if (!res.ok) {
+        throw new Error("GitHub ledger.json の取得に失敗しました");
+      }
+      const githubData = await res.json();
+      const latestGithub = githubData[githubData.length - 1];
+
+      // 🔸 双方のデータを比較
+      const sameId = firestoreData.videoId === latestGithub.videoId;
+      const sameAddress = firestoreData.address === latestGithub.address;
+      const sameTime =
+        Math.abs(
+          new Date(firestoreData.createdAt).getTime() -
+          new Date(latestGithub.createdAt).getTime()
+        ) < 10000; // ±10秒以内なら同一とみなす
+
+      const allMatch = sameId && sameAddress && sameTime;
+
+      // 🔸 結果を表示
+      output.innerHTML = `
+        <h3>Firestore 最新ログ</h3>
+        <pre>${JSON.stringify(firestoreData, null, 2)}</pre>
+        <h3>GitHub 公開台帳</h3>
+        <pre>${JSON.stringify(latestGithub, null, 2)}</pre>
+        <h3>照合結果：</h3>
+        <p class="${allMatch ? 'match' : 'mismatch'}">
+          ${allMatch ? '✅ 一致しました（改ざんなし）' : '⚠️ 不一致です（要確認）'}
+        </p>
+      `;
+    } catch (err) {
+      console.error(err);
+      output.textContent = `読み込みエラー: ${err.message}`;
+    }
+  }
+
+  loadAndCompare();
+</script>
+</body>
+</html>
