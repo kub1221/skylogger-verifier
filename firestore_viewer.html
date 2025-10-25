@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>☁️ Sky Logger — Firestore照合ビュー</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin: 40px;
+    }
+    h1 { color: #ffcc00; }
+    .note { color: #888; font-size: 0.9em; margin-bottom: 2em; }
+    .ok { color: #00ff99; }
+    .ng { color: #ff5555; }
+    .warn { color: #ffcc00; }
+    hr { border: 0; border-top: 1px solid #333; margin: 1.5em 0; }
+  </style>
+
+  <!-- Firebase SDK（Firestore用） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9mECKLUUpyaLsVLZJjq7KeZOEVzA",
+      authDomain: "sky-logger-appv1.firebaseapp.com",
+      projectId: "sky-logger-appv1",
+      storageBucket: "sky-logger-appv1.appspot.com",
+      messagingSenderId: "121954124998",
+      appId: "1:121954124998:web:xxxxxxxxxxxx"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadAndCompare() {
+      const output = document.getElementById("output");
+      output.textContent = "📡 Firestore と GitHub を照合中...\n";
+
+      try {
+        // === ① GitHub ledger.json を取得 ===
+        const ledgerUrl = "https://raw.githubusercontent.com/kub1221/sky-logger-hashes/main/hashes/ledger.json";
+        const ledgerRes = await fetch(ledgerUrl);
+        const ledgerData = await ledgerRes.json();
+        output.textContent += `✅ GitHub ledger.json 読み込み成功 (${ledgerData.length}件)\n`;
+
+        // === ② Firestore public_logs を取得 ===
+        const querySnap = await getDocs(collection(db, "public_logs"));
+        const firestoreData = [];
+        querySnap.forEach((doc) => firestoreData.push(doc.data()));
+        output.textContent += `✅ Firestore public_logs 読み込み成功 (${firestoreData.length}件)\n\n`;
+
+        // === ③ 照合 ===
+        const results = [];
+
+        for (const log of ledgerData) {
+          const match = firestoreData.find(f => f.id === log.id);
+          if (!match) {
+            results.push(`⚠️ Firestoreに存在しない: ${log.id}`);
+            continue;
+          }
+
+          const hashMatch = match.hash === log.hash;
+          if (hashMatch) {
+            results.push(`✅ 一致: ${log.id}\n   address: ${log.address}\n   hash: ${log.hash}`);
+          } else {
+            results.push(`❌ 不一致: ${log.id}\n   Firestore: ${match.hash}\n   GitHub: ${log.hash}`);
+          }
+        }
+
+        // === ④ 出力 ===
+        output.innerHTML =
+          `<span class="ok">✅ GitHub & Firestore照合完了</span>\n\n` +
+          results.join("\n----------------------------------------\n");
+      } catch (err) {
+        output.innerHTML = `<span class="ng">❌ 読み込みエラー:</span> ${err}`;
+      }
+    }
+
+    window.onload = loadAndCompare;
+  </script>
+</head>
+
+<body>
+  <h1>☁️ Sky Logger — Firestore照合ビュー</h1>
+  <p class="note">Firestore と GitHub のログを自動照合して、改ざんがないかを確認します。</p>
+  <div id="output">読み込み中...</div>
+</body>
+</html>
