@@ -14,12 +14,12 @@
     }
     .card {
       background: #222;
-      display: block;              /* ← inline-blockを修正 */
+      display: block;
       text-align: left;
       padding: 24px;
       border-radius: 12px;
       margin: 0 auto;
-      width: 90%;                  /* ← スマホ幅対応 */
+      width: 90%;
       max-width: 420px;
       box-shadow: 0 0 20px rgba(0,0,0,0.3);
     }
@@ -55,11 +55,35 @@
       margin-top: 10px;
       text-align: center;
     }
+    hr {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 24px 0;
+    }
+    a.link-button {
+      display: inline-block;
+      background: #444;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    a.link-button:hover {
+      background: #666;
+    }
   </style>
 </head>
 <body>
   <h1>📸 Sky Logger Verify</h1>
   <div class="card" id="content">読み込み中...</div>
+
+  <hr>
+  <!-- 🔗 FirestoreとGitHub照合リンク -->
+  <a id="toCheckLink" href="#" style="display:none" target="_blank" class="link-button">
+    🔗 Firestore と GitHub の照合結果を見る
+  </a>
 
   <script>
     // --- URLパラメータ取得 ---
@@ -71,6 +95,7 @@
       capturedAt: params.get("capturedAt"),
       file: params.get("file"),
       hash: params.get("hash"),
+      videoId: params.get("videoId")
     };
 
     // --- JST変換関数 ---
@@ -115,6 +140,13 @@
           ※ UTCは国際標準時、JSTは日本時間（UTC+9）です。
         </div>
       `;
+    }
+
+    // --- Firestore照合ページへのリンクを設定 ---
+    const link = document.getElementById("toCheckLink");
+    if (link && data.videoId) {
+      link.href = `firestore_viewer.html?videoId=${encodeURIComponent(data.videoId)}`;
+      link.style.display = "inline-block";
     }
   </script>
 </body>
