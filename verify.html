@@ -94,27 +94,21 @@
       lng: params.get("lng"),
       capturedAt: params.get("capturedAt"),
       file: params.get("file"),
-      hash: params.get("hash"),
-      videoId: params.get("videoId")
+      hash: params.get("hash")
     };
 
     // --- JST変換関数 ---
     function toJST(utcString) {
-      try {
-        if (!utcString || utcString === "(未指定)") return "(未指定)";
-        const date = new Date(utcString);
-        if (isNaN(date)) return "(変換できません)";
-        const jstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-        const pad = n => String(n).padStart(2, "0");
-        return `${jstDate.getFullYear()}/${pad(jstDate.getMonth()+1)}/${pad(jstDate.getDate())} ${pad(jstDate.getHours())}:${pad(jstDate.getMinutes())}:${pad(jstDate.getSeconds())} (JST)`;
-      } catch {
-        return "(変換エラー)";
-      }
+      if (!utcString) return "(未指定)";
+      const date = new Date(utcString);
+      if (isNaN(date)) return "(変換不可)";
+      const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      const p = n => String(n).padStart(2,"0");
+      return `${jst.getFullYear()}/${p(jst.getMonth()+1)}/${p(jst.getDate())} ${p(jst.getHours())}:${p(jst.getMinutes())}:${p(jst.getSeconds())} (JST)`;
     }
 
-    // --- HTML生成 ---
+    // --- メイン表示 ---
     const content = document.getElementById("content");
-
     if (!data.uuid) {
       content.innerHTML = `<p>❌ 無効なQRコードです。</p>`;
     } else {
@@ -142,11 +136,16 @@
       `;
     }
 
-    // --- Firestore照合ページへのリンクを設定 ---
+    // --- 🔗 Firestore照合ページへのリンクを自動生成 ---
     const link = document.getElementById("toCheckLink");
-    if (link && data.videoId) {
-      link.href = `firestore_viewer.html?videoId=${encodeURIComponent(data.videoId)}`;
-      link.style.display = "inline-block";
+    if (data.file) {
+      // file名から UUID (videoId) を抽出
+      const m = data.file.match(/_([0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12})\.json$/i);
+      if (m) {
+        const videoId = m[1];
+        link.href = `firestore_viewer.html?videoId=${encodeURIComponent(videoId)}`;
+        link.style.display = "inline-block";
+      }
     }
   </script>
 </body>
