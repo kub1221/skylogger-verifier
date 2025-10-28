@@ -17,6 +17,18 @@
     .ng { color: #ff5555; }
     .warn { color: #ffcc00; }
     hr { border: 0; border-top: 1px solid #333; margin: 1.5em 0; }
+    .back-link {
+      display: inline-block;
+      margin-top: 2em;
+      padding: 8px 14px;
+      background: #444;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .back-link:hover {
+      background: #666;
+    }
   </style>
 
   <!-- Firebase SDK（Firestore用） -->
@@ -24,6 +36,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
+    // --- Firebase 設定 ---
     const firebaseConfig = {
       apiKey: "AIzaSyA9mECKLUUpyaLsVLZJjq7KeZOEVzA",
       authDomain: "sky-logger-appv1.firebaseapp.com",
@@ -36,9 +49,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // --- メイン処理 ---
     async function loadAndCompare() {
       const output = document.getElementById("output");
       output.textContent = "📡 Firestore と GitHub を照合中...\n";
+
+      const params = new URLSearchParams(window.location.search);
+      const targetId = params.get("videoId"); // ← 個別モードの識別
 
       try {
         // === ① GitHub ledger.json を取得 ===
@@ -56,18 +73,39 @@
         // === ③ 照合 ===
         const results = [];
 
-        for (const log of ledgerData) {
-          const match = firestoreData.find(f => f.id === log.id);
-          if (!match) {
-            results.push(`⚠️ Firestoreに存在しない: ${log.id}`);
-            continue;
+        // --- 個別モード ---
+        if (targetId) {
+          output.textContent += `🎯 個別照合モード：videoId=${targetId}\n\n`;
+
+          const ledgerItem = ledgerData.find(l => l.id === targetId);
+          const firestoreItem = firestoreData.find(f => f.id === targetId);
+
+          if (!ledgerItem) {
+            results.push(`⚠️ GitHubに存在しない: ${targetId}`);
+          } else if (!firestoreItem) {
+            results.push(`⚠️ Firestoreに存在しない: ${targetId}`);
+          } else if (ledgerItem.hash === firestoreItem.hash) {
+            results.push(`✅ 一致: ${targetId}\n   address: ${ledgerItem.address}\n   hash: ${ledgerItem.hash}`);
+          } else {
+            results.push(`❌ 不一致: ${targetId}\n   Firestore: ${firestoreItem.hash}\n   GitHub: ${ledgerItem.hash}`);
           }
 
-          const hashMatch = match.hash === log.hash;
-          if (hashMatch) {
-            results.push(`✅ 一致: ${log.id}\n   address: ${log.address}\n   hash: ${log.hash}`);
-          } else {
-            results.push(`❌ 不一致: ${log.id}\n   Firestore: ${match.hash}\n   GitHub: ${log.hash}`);
+        // --- 全体照合モード ---
+        } else {
+          output.textContent += `🗂 全体照合モード\n\n`;
+          for (const log of ledgerData) {
+            const match = firestoreData.find(f => f.id === log.id);
+            if (!match) {
+              results.push(`⚠️ Firestoreに存在しない: ${log.id}`);
+              continue;
+            }
+
+            const hashMatch = match.hash === log.hash;
+            if (hashMatch) {
+              results.push(`✅ 一致: ${log.id}\n   address: ${log.address}\n   hash: ${log.hash}`);
+            } else {
+              results.push(`❌ 不一致: ${log.id}\n   Firestore: ${match.hash}\n   GitHub: ${log.hash}`);
+            }
           }
         }
 
@@ -75,6 +113,7 @@
         output.innerHTML =
           `<span class="ok">✅ GitHub & Firestore照合完了</span>\n\n` +
           results.join("\n----------------------------------------\n");
+
       } catch (err) {
         output.innerHTML = `<span class="ng">❌ 読み込みエラー:</span> ${err}`;
       }
@@ -86,7 +125,12 @@
 
 <body>
   <h1>☁️ Sky Logger — Firestore照合ビュー</h1>
-  <p class="note">Firestore と GitHub のログを自動照合して、改ざんがないかを確認します。</p>
+  <p class="note">
+    Firestore と GitHub のログを自動照合して、改ざんがないかを確認します。<br>
+    URL に <code>?videoId=xxxxxxxx</code> を付けると、その1件だけを個別照合できます。
+  </p>
   <div id="output">読み込み中...</div>
+
+  <a class="back-link" href="https://kub1221.github.io/skylogger-verifier/">📘 検証システムの仕組みへ戻る</a>
 </body>
 </html>
