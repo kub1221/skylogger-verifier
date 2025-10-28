@@ -1,2 +1,10 @@
-id: 12345-test
-hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+{
+  "videoId": "8bb6fa2a-7a7c-40ea-8bc2-a8b4a1355b69",
+  "uuid": "a34f5c22-9bcd-4c76-9f2b-84e2efc8a913",
+  "fileName": "2025_10_27_tokyo_suginami_horinouchi_59a5ee_v",
+  "latitude": 35.6864,
+  "longitude": 139.6357,
+  "address": "tokyo_suginami_horinouchi_2",
+  "capturedAt": "2025-10-27T10:24:51Z",
+  "hash": "21b44218846ec1646f055da9440c40a99c3be287c611e7bcf4f88981c5aae42d"
+}
