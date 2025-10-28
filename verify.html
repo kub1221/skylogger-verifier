@@ -69,6 +69,7 @@
       text-decoration: none;
       font-weight: bold;
       transition: background 0.3s;
+      margin: 4px 0;
     }
     a.link-button:hover {
       background: #666;
@@ -80,9 +81,18 @@
   <div class="card" id="content">読み込み中...</div>
 
   <hr>
+
   <!-- 🔗 FirestoreとGitHub照合リンク -->
   <a id="toCheckLink" href="#" style="display:none" target="_blank" class="link-button">
     🔗 Firestore と GitHub の照合結果を見る
+  </a>
+
+  <!-- 📘 README（説明ページ）へのリンク -->
+  <a href="https://kub1221.github.io/skylogger-verifier/"
+     target="_blank"
+     class="link-button"
+     style="background:#005fa3;">
+    📘 Sky Logger 検証システムの仕組みを読む
   </a>
 
   <script>
