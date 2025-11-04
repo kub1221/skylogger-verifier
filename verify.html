@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sky Logger Verify</title>
+  <title>📸 Sky Logger Verify</title>
   <style>
     body {
       background: #111;
@@ -71,9 +71,7 @@
       transition: background 0.3s;
       margin: 4px 0;
     }
-    a.link-button:hover {
-      background: #666;
-    }
+    a.link-button:hover { background: #666; }
   </style>
 </head>
 <body>
@@ -82,12 +80,10 @@
 
   <hr>
 
-  <!-- 🔗 FirestoreとGitHub照合リンク -->
   <a id="toCheckLink" href="#" style="display:none" target="_blank" class="link-button">
     🔗 Firestore と GitHub の照合結果を見る
   </a>
 
-  <!-- 📘 README（説明ページ）へのリンク -->
   <a href="https://kub1221.github.io/skylogger-verifier/"
      target="_blank"
      class="link-button"
@@ -107,7 +103,7 @@
       hash: params.get("hash")
     };
 
-    // --- JST変換関数 ---
+    // --- JST変換関数（正確補正 +9h）---
     function toJST(utcString) {
       if (!utcString) return "(未指定)";
       const date = new Date(utcString);
@@ -146,10 +142,9 @@
       `;
     }
 
-    // --- 🔗 Firestore照合ページへのリンクを自動生成 ---
+    // --- 🔗 Firestore照合ページへのリンク生成 ---
     const link = document.getElementById("toCheckLink");
     if (data.file) {
-      // file名から UUID (videoId) を抽出
       const m = data.file.match(/_([0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12})\.json$/i);
       if (m) {
         const videoId = m[1];
